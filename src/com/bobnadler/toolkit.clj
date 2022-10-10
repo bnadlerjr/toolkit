@@ -1,7 +1,29 @@
 (ns com.bobnadler.toolkit
   "Various utility functions for Clojure projects."
   (:require
-   [clojure.string :as s]))
+   [clojure.string :as s]
+   [clojure.walk :as walk]))
+
+(defn redact-map
+  "Returns a new map where the given map `m`'s values have been replaced by
+  `redact-value` for any key that matches `redact-key?`."
+  [m {:keys [redact-key? redact-value]}]
+  (walk/postwalk
+   (fn [x]
+     (if (map? x)
+       (->> x
+            (map (fn [[k v]]
+                   (if (redact-key? (keyword k))
+                     [k redact-value]
+                     [k v])))
+            (into {}))
+       x))
+   m))
+
+(comment
+  (redact-map {:foo "bar" :password "secret"}
+              {:redact-key? #{:password}
+               :redact-value "[FILTERED]"})) ; {:foo "bar", :password "[FILTERED]"}
 
 (defn wrap-request-id
   "Ring middleware that wraps a request with an identifier.

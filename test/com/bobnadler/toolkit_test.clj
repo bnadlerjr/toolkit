@@ -2,6 +2,23 @@
   (:require [clojure.test :as t]
             [com.bobnadler.toolkit :as bntk]))
 
+(t/deftest redact-map-test
+  (let [options {:redact-key? #{:secret :password} :redact-value "[FILTERED]"}]
+    (t/is (= {:secret "[FILTERED]"}
+             (bntk/redact-map {:secret "123"} options)))
+
+    (t/is (= {:secret "[FILTERED]" :foo 42}
+             (bntk/redact-map {:secret "123" :foo 42} options)))
+
+    (t/is (= {"secret" "[FILTERED]" :foo 42}
+             (bntk/redact-map {"secret" "123" :foo 42} options)))
+
+    (t/is (= {:nested {"secret" "[FILTERED]"} :foo 42}
+             (bntk/redact-map {:nested {"secret" "123"} :foo 42} options)))
+
+    (t/is (= {:nested {"secret" "[FILTERED]"} :password "[FILTERED]"}
+             (bntk/redact-map {:nested {"secret" "123"} :password "secret"} options)))))
+
 (t/deftest wrap-request-id-test
   (let [handler (bntk/wrap-request-id identity)]
 
