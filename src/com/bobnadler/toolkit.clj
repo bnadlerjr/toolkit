@@ -61,12 +61,14 @@
 (defn wrap-request-start-logger
   "Ring middleware that logs information about the start of the request."
   [handler & {:keys [log-fn] :or {log-fn default-log-fn}}]
-  (fn [request]
+  (fn [{:keys [request-id] :as request}]
     (let [method (extract-method-name request)
-          path (extract-path request)]
-      (log-fn {:level :info
-               :msg (format "Started %s '%s'" method path)
-               :attrs {:method method :path path}})
+          path (extract-path request)
+          request-id-info (when request-id {:request-id request-id})]
+      (log-fn (merge request-id-info
+                     {:level :info
+                      :msg (format "Started %s '%s'" method path)
+                      :attrs {:method method :path path}}))
       (handler (assoc request :start-ms (System/currentTimeMillis))))))
 
 (comment
@@ -84,15 +86,17 @@
 (defn wrap-request-finish-logger
   "Ring middleware that logs information about the end of the request."
   [handler & {:keys [log-fn] :or {log-fn default-log-fn}}]
-  (fn [request]
+  (fn [{:keys [request-id] :as request}]
     (let [method (extract-method-name request)
           path (extract-path request)
           response (handler request)
           status (:status response)
-          duration (calculate-duration request)]
-      (log-fn {:level :info
-               :msg (format "Completed %s '%s' %s in %s" method path status duration)
-               :attrs {:method method :path path :status status :duration duration}})
+          duration (calculate-duration request)
+          request-id-info (when request-id {:request-id request-id})]
+      (log-fn (merge request-id-info
+                     {:level :info
+                      :msg (format "Completed %s '%s' %s in %s" method path status duration)
+                      :attrs {:method method :path path :status status :duration duration}}))
       response)))
 
 (comment
@@ -114,13 +118,15 @@
   `default-redact-key?` is used."
   [handler & {:keys [log-fn redact-key?] :or {log-fn default-log-fn
                                               redact-key? default-redact-key?}}]
-  (fn [request]
-    (log-fn {:level :info
-             :msg "Request parameters"
-             :attrs (redact-map (:params request)
-                                {:redact-key? redact-key?
-                                 :redact-value "[FILTERED]"})})
-    (handler request)))
+  (fn [{:keys [request-id] :as request}]
+    (let [request-id-info (when request-id {:request-id request-id})]
+      (log-fn (merge request-id-info
+                     {:level :info
+                      :msg "Request parameters"
+                      :attrs (redact-map (:params request)
+                                         {:redact-key? redact-key?
+                                          :redact-value "[FILTERED]"})}))
+      (handler request))))
 
 (comment
   (def handler (wrap-request-params-logger identity))
