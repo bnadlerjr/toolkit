@@ -27,14 +27,20 @@
 (defn- default-log-fn [{:keys [level msg attrs]}]
   (.println System/out (format "%s | %s -- %s" (s/upper-case (name level)) msg attrs)))
 
+(defn- extract-method-name [request]
+  (s/upper-case (name (:request-method request))))
+
+(defn- extract-path [request]
+  (str (:uri request)
+       (when-let [query-string (:query-string request)]
+         (str "?" query-string))))
+
 (defn wrap-request-start-logger
   "Ring middleware that logs information about the start of the request."
   [handler & {:keys [log-fn] :or {log-fn default-log-fn}}]
   (fn [request]
-    (let [method (s/upper-case (name (:request-method request)))
-          path (str (:uri request)
-                    (when-let [query-string (:query-string request)]
-                      (str "?" query-string)))]
+    (let [method (extract-method-name request)
+          path (extract-path request)]
       (log-fn {:level :info
                :msg (format "Started %s '%s'" method path)
                :attrs {:method method :path path}})
@@ -42,6 +48,26 @@
 
 (comment
   (def handler (wrap-request-start-logger identity))
+
+  (handler {:request-method :get
+            :uri "/foo"
+            :query-string "bar=2"}))
+
+(defn wrap-request-finish-logger
+  "Ring middleware that logs information about the end of the request."
+  [handler & {:keys [log-fn] :or {log-fn default-log-fn}}]
+  (fn [request]
+    (let [method (extract-method-name request)
+          path (extract-path request)
+          response (handler request)
+          status (:status response)]
+      (log-fn {:level :info
+               :msg (format "Completed %s '%s' %s" method path status)
+               :attrs {:method method :path path :status status}})
+      response)))
+
+(comment
+  (def handler (wrap-request-finish-logger #(assoc % :status 200)))
 
   (handler {:request-method :get
             :uri "/foo"

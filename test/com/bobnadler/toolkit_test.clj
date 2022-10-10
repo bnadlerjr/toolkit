@@ -16,9 +16,33 @@
 (t/deftest wrap-request-start-logger-test
   (let [state_ (atom nil)
         fake-logger (fn [log-info] (reset! state_ log-info))
+        req {:request-method :get :uri "/foo" :query-string "bar=2"}
         handler (bntk/wrap-request-start-logger identity {:log-fn fake-logger})]
-    (handler {:request-method :get :uri "/foo" :query-string "bar=2"})
-    (t/is (= {:level :info
-             :msg "Started GET '/foo?bar=2'"
-             :attrs {:method "GET" :path "/foo?bar=2"}}
-             @state_))))
+
+    (t/testing "message is logged"
+      (handler req)
+      (t/is (= {:level :info
+                :msg "Started GET '/foo?bar=2'"
+                :attrs {:method "GET" :path "/foo?bar=2"}}
+               @state_)))
+
+    (t/testing "request object is returned"
+      (t/is (= req (handler req))))))
+
+(t/deftest wrap-request-finish-logger-test
+  (let [state_ (atom nil)
+        fake-logger (fn [log-info] (reset! state_ log-info))
+        req {:request-method :get :uri "/foo" :query-string "bar=2"}
+        handler (bntk/wrap-request-finish-logger
+                  #(assoc % :status 200)
+                  {:log-fn fake-logger})]
+
+    (t/testing "message is logged"
+      (handler req)
+      (t/is (= {:level :info
+                :msg "Completed GET '/foo?bar=2' 200"
+                :attrs {:method "GET" :path "/foo?bar=2" :status 200}}
+               @state_)))
+
+    (t/testing "request object is returned"
+      (t/is (= (assoc req :status 200) (handler req))))))
