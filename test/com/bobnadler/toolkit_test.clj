@@ -43,7 +43,7 @@
                 :attrs {:method "GET" :path "/foo?bar=2"}}
                @state_)))
 
-    (t/testing "request object is returned"
+    (t/testing "request map is returned"
       (let [response (handler req)]
         (t/is (= :get (:request-method response)))
         (t/is (= "/foo" (:uri response)))
@@ -79,5 +79,20 @@
         (t/is (= 200 (:status attrs)))
         (t/is (= "?ms" (:duration attrs)))))
 
-    (t/testing "request object is returned"
+    (t/testing "request map is returned"
       (t/is (= (assoc req :status 200) (handler req))))))
+
+(t/deftest wrap-request-params-logger
+  (let [state_ (atom nil)
+        fake-logger (fn [log-info] (reset! state_ log-info))
+        handler (bntk/wrap-request-params-logger identity {:log-fn fake-logger})
+        request {:params {:foo 42 :password "secret"}}]
+    (t/testing "message is logged with filtered params"
+      (handler request)
+      (let [{:keys [level msg attrs]} @state_]
+        (t/is (= :info level))
+        (t/is (= "Request parameters" msg))
+        (t/is (= {:foo 42 :password "[FILTERED]"} attrs))))
+
+    (t/testing "request map is returned"
+      (t/is (= request (handler request))))))

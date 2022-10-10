@@ -1,6 +1,7 @@
 (ns com.bobnadler.toolkit
   "Various utility functions for Clojure projects."
   (:require
+   clojure.set
    [clojure.string :as s]
    [clojure.walk :as walk]))
 
@@ -100,4 +101,33 @@
   (handler {:request-method :get
             :start-ms (System/currentTimeMillis)
             :uri "/foo"
+            :query-string "bar=2"}))
+
+(def ^:private default-redact-key?
+  #{:authorization :password :token :secret :secret-key :secret-token})
+
+(defn wrap-request-params-logger
+  "Ring middleware that logs information about the request parameters.
+
+  By default any parameters with key names that are members of the set
+  `redact-key?` are automatically filtered. If `redact-key?` is not given
+  `default-redact-key?` is used."
+  [handler & {:keys [log-fn redact-key?] :or {log-fn default-log-fn
+                                              redact-key? default-redact-key?}}]
+  (fn [request]
+    (log-fn {:level :info
+             :msg "Request parameters"
+             :attrs (redact-map (:params request)
+                                {:redact-key? redact-key?
+                                 :redact-value "[FILTERED]"})})
+    (handler request)))
+
+(comment
+  (def handler (wrap-request-params-logger identity))
+
+  (handler {:request-method :get
+            :start-ms (System/currentTimeMillis)
+            :uri "/foo"
+            :params {:foo {:bar 42}
+                     "password" "secret"}
             :query-string "bar=2"}))
