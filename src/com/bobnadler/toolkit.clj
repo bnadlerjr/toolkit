@@ -44,7 +44,7 @@
       (log-fn {:level :info
                :msg (format "Started %s '%s'" method path)
                :attrs {:method method :path path}})
-      (handler request))))
+      (handler (assoc request :start-ms (System/currentTimeMillis))))))
 
 (comment
   (def handler (wrap-request-start-logger identity))
@@ -53,6 +53,11 @@
             :uri "/foo"
             :query-string "bar=2"}))
 
+(defn- calculate-duration [{:keys [start-ms]}]
+  (if start-ms
+    (str (- (System/currentTimeMillis) start-ms) "ms")
+    "?ms"))
+
 (defn wrap-request-finish-logger
   "Ring middleware that logs information about the end of the request."
   [handler & {:keys [log-fn] :or {log-fn default-log-fn}}]
@@ -60,15 +65,17 @@
     (let [method (extract-method-name request)
           path (extract-path request)
           response (handler request)
-          status (:status response)]
+          status (:status response)
+          duration (calculate-duration request)]
       (log-fn {:level :info
-               :msg (format "Completed %s '%s' %s" method path status)
-               :attrs {:method method :path path :status status}})
+               :msg (format "Completed %s '%s' %s in %s" method path status duration)
+               :attrs {:method method :path path :status status :duration duration}})
       response)))
 
 (comment
   (def handler (wrap-request-finish-logger #(assoc % :status 200)))
 
   (handler {:request-method :get
+            :start-ms (System/currentTimeMillis)
             :uri "/foo"
             :query-string "bar=2"}))

@@ -27,22 +27,40 @@
                @state_)))
 
     (t/testing "request object is returned"
-      (t/is (= req (handler req))))))
+      (let [response (handler req)]
+        (t/is (= :get (:request-method response)))
+        (t/is (= "/foo" (:uri response)))
+        (t/is (= "bar=2" (:query-string response)))
+        (t/is (> (:start-ms response) 0))))))
 
 (t/deftest wrap-request-finish-logger-test
   (let [state_ (atom nil)
         fake-logger (fn [log-info] (reset! state_ log-info))
         req {:request-method :get :uri "/foo" :query-string "bar=2"}
         handler (bntk/wrap-request-finish-logger
-                  #(assoc % :status 200)
-                  {:log-fn fake-logger})]
+                 #(assoc % :status 200)
+                 {:log-fn fake-logger})]
 
-    (t/testing "message is logged"
+    (t/testing "message is logged with duration"
+      ;; Might be brittle, but works for now
+      (handler (assoc req :start-ms (System/currentTimeMillis)))
+      (let [{:keys [level msg attrs]} @state_]
+        (t/is (= :info level))
+        (t/is (= "Completed GET '/foo?bar=2' 200 in 0ms" msg))
+        (t/is (= "GET" (:method attrs)))
+        (t/is (= "/foo?bar=2" (:path attrs)))
+        (t/is (= 200 (:status attrs)))
+        (t/is (= "0ms" (:duration attrs)))))
+
+    (t/testing "message is logged with unknown duration"
       (handler req)
-      (t/is (= {:level :info
-                :msg "Completed GET '/foo?bar=2' 200"
-                :attrs {:method "GET" :path "/foo?bar=2" :status 200}}
-               @state_)))
+      (let [{:keys [level msg attrs]} @state_]
+        (t/is (= :info level))
+        (t/is (= "Completed GET '/foo?bar=2' 200 in ?ms" msg))
+        (t/is (= "GET" (:method attrs)))
+        (t/is (= "/foo?bar=2" (:path attrs)))
+        (t/is (= 200 (:status attrs)))
+        (t/is (= "?ms" (:duration attrs)))))
 
     (t/testing "request object is returned"
       (t/is (= (assoc req :status 200) (handler req))))))
