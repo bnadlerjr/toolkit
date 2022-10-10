@@ -116,13 +116,14 @@
   `default-redact-key?` is used."
   [handler & {:keys [log-fn redact-key?] :or {log-fn default-log-fn
                                               redact-key? default-redact-key?}}]
-  (fn [{:keys [request-id] :as request}]
-    (log-fn (merge {:level :info
-                    :msg "Request parameters"
-                    :attrs (redact-map (:params request)
-                                       {:redact-key? redact-key?
-                                        :redact-value "[FILTERED]"})}
-                   (when request-id {:request-id request-id})))
+  (fn [{:keys [params request-id] :as request}]
+    (when-not (empty? params)
+      (log-fn (merge {:level :info
+                      :msg "Request parameters"
+                      :attrs (redact-map params
+                                         {:redact-key? redact-key?
+                                          :redact-value "[FILTERED]"})}
+                     (when request-id {:request-id request-id}))))
     (handler request)))
 
 (comment

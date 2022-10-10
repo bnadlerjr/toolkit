@@ -94,5 +94,10 @@
         (t/is (= "Request parameters" msg))
         (t/is (= {:foo 42 :password "[FILTERED]"} attrs))))
 
+    (t/testing "no message emitted if params are empty"
+      (reset! state_ nil)
+      (handler {})
+      (t/is (nil? @state_)))
+
     (t/testing "request map is returned"
       (t/is (= request (handler request))))))
