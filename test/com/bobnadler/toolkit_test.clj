@@ -94,6 +94,11 @@
         (t/is (= "Request parameters" msg))
         (t/is (= {:foo 42 :password "[FILTERED]"} (:params attrs)))))
 
+    (t/testing "anti-forgery token is removed from params"
+      (handler {:params {:foo 42 :__anti-forgery-token "abc123"}})
+      (let [{:keys [attrs]} @state_]
+        (t/is (= {:foo 42} (:params attrs)))))
+
     (t/testing "no message emitted if params are empty"
       (reset! state_ nil)
       (handler {})
