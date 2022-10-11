@@ -19,6 +19,27 @@
     (t/is (= {:nested {"secret" "[FILTERED]"} :password "[FILTERED]"}
              (bntk/redact-map {:nested {"secret" "123"} :password "secret"} options)))))
 
+(t/deftest truncate-start-test
+  (let [long-str "A long string that should be truncated"
+        short-str "A short string"]
+    (t/testing "with defaults"
+      (t/is (= "...at should be truncated"
+               (bntk/truncate-start long-str)))
+      (t/is (= "A short string"
+               (bntk/truncate-start short-str))))
+
+    (t/testing "alternate prefix"
+      (t/is (= "$$$at should be truncated"
+               (bntk/truncate-start long-str "$$$" 25)))
+      (t/is (= "A short string"
+               (bntk/truncate-start short-str "$$$" 25))))
+
+    (t/testing "alternate limit"
+      (t/is (= "...ould be truncated"
+               (bntk/truncate-start long-str "..." 20)))
+      (t/is (= "A short string"
+               (bntk/truncate-start short-str "..." 20))))))
+
 (t/deftest wrap-request-id-test
   (let [handler (bntk/wrap-request-id identity)]
 

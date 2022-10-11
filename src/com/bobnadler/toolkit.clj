@@ -26,6 +26,27 @@
               {:redact-key? #{:password}
                :redact-value "[FILTERED]"})) ; {:foo "bar", :password "[FILTERED]"}
 
+(defn truncate-start
+  "Returns `s` truncated from the beginning instead of the end.
+
+    prefix: String to prepend to the truncated target string.
+    limit:  Number of characters to limit `s`. If the length of `s` is
+            smaller than `limit`, do not truncate `s`."
+  ([s prefix limit]
+   (let [s-length (count s)
+         target-length (- limit (count prefix))]
+     (if (<= s-length target-length)
+       s
+       (str prefix (subs s (- s-length target-length) s-length)))))
+
+  ([s] (truncate-start s "..." 25)))
+
+(comment
+  (def long-str "this is a long string that should be truncated")
+  (truncate-start long-str) ; "... t should be truncated"
+  (truncate-start "a short string") ; "a short string"
+  (count (truncate-start long-str))) ; 25
+
 (defn wrap-request-id
   "Ring middleware that wraps a request with an identifier.
 
