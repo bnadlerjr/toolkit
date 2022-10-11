@@ -31,15 +31,22 @@
 
   Checks the request for a `x-request-id` header, if one is present it is
   added to the request map. If not present one is generated and added to the
-  request map."
+  request map.
+
+  Options:
+
+    log-context-fn: A fn that provides context for all log requests. For
+                    example, when using Timbre...
+
+                    (fn [ctx f] (timbre/with-context+ ctx (f)))"
   [handler & {:keys [log-context-fn]}]
   (fn [request]
     (let [request-id (get-in request [:headers "x-request-id"] (java.util.UUID/randomUUID))
           request-id-str (.toString request-id)]
       (if log-context-fn
         (log-context-fn
-          {:request-id request-id-str}
-          #(handler (assoc request :request-id request-id-str)))
+         {:request-id request-id-str}
+         #(handler (assoc request :request-id request-id-str)))
         (handler (assoc request :request-id request-id-str))))))
 
 (comment
@@ -66,13 +73,12 @@
 (defn wrap-request-start-logger
   "Ring middleware that logs information about the start of the request."
   [handler & {:keys [log-fn] :or {log-fn default-log-fn}}]
-  (fn [{:keys [request-id] :as request}]
+  (fn [request]
     (let [method (extract-method-name request)
           path (extract-path request)]
-      (log-fn (merge {:level :info
-                      :msg (format "Started %s '%s'" method path)
-                      :attrs {:method method :path path}}
-                     (when request-id {:request-id request-id})))
+      (log-fn {:level :info
+               :msg (format "Started %s '%s'" method path)
+               :attrs {:method method :path path}})
       (handler (assoc request :start-ms (System/currentTimeMillis))))))
 
 (comment
@@ -90,16 +96,15 @@
 (defn wrap-request-finish-logger
   "Ring middleware that logs information about the end of the request."
   [handler & {:keys [log-fn] :or {log-fn default-log-fn}}]
-  (fn [{:keys [request-id] :as request}]
+  (fn [request]
     (let [method (extract-method-name request)
           path (extract-path request)
           response (handler request)
           status (:status response)
           duration (calculate-duration request)]
-      (log-fn (merge {:level :info
-                      :msg (format "Completed %s '%s' %s in %s" method path status duration)
-                      :attrs {:method method :path path :status status :duration duration}}
-                     (when request-id {:request-id request-id})))
+      (log-fn {:level :info
+               :msg (format "Completed %s '%s' %s in %s" method path status duration)
+               :attrs {:method method :path path :status status :duration duration}})
       response)))
 
 (comment
@@ -121,14 +126,13 @@
   `default-redact-key?` is used."
   [handler & {:keys [log-fn redact-key?] :or {log-fn default-log-fn
                                               redact-key? default-redact-key?}}]
-  (fn [{:keys [params request-id] :as request}]
+  (fn [{:keys [params] :as request}]
     (when-not (empty? params)
-      (log-fn (merge {:level :info
-                      :msg "Request parameters"
-                      :attrs (redact-map params
-                                         {:redact-key? redact-key?
-                                          :redact-value "[FILTERED]"})}
-                     (when request-id {:request-id request-id}))))
+      (log-fn {:level :info
+               :msg "Request parameters"
+               :attrs (redact-map params
+                                  {:redact-key? redact-key?
+                                   :redact-value "[FILTERED]"})}))
     (handler request)))
 
 (comment
