@@ -130,9 +130,9 @@
     (when-not (empty? params)
       (log-fn {:level :info
                :msg "Request parameters"
-               :attrs (redact-map params
-                                  {:redact-key? redact-key?
-                                   :redact-value "[FILTERED]"})}))
+               :attrs {:params (redact-map params
+                                           {:redact-key? redact-key?
+                                            :redact-value "[FILTERED]"})}}))
     (handler request)))
 
 (comment

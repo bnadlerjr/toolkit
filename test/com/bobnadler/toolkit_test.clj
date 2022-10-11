@@ -92,7 +92,7 @@
       (let [{:keys [level msg attrs]} @state_]
         (t/is (= :info level))
         (t/is (= "Request parameters" msg))
-        (t/is (= {:foo 42 :password "[FILTERED]"} attrs))))
+        (t/is (= {:foo 42 :password "[FILTERED]"} (:params attrs)))))
 
     (t/testing "no message emitted if params are empty"
       (reset! state_ nil)
