@@ -32,10 +32,15 @@
   Checks the request for a `x-request-id` header, if one is present it is
   added to the request map. If not present one is generated and added to the
   request map."
-  [handler]
+  [handler & {:keys [log-context-fn]}]
   (fn [request]
-    (let [request-id (get-in request [:headers "x-request-id"] (java.util.UUID/randomUUID))]
-      (handler (assoc request :request-id (.toString request-id))))))
+    (let [request-id (get-in request [:headers "x-request-id"] (java.util.UUID/randomUUID))
+          request-id-str (.toString request-id)]
+      (if log-context-fn
+        (log-context-fn
+          {:request-id request-id-str}
+          #(handler (assoc request :request-id request-id-str)))
+        (handler (assoc request :request-id request-id-str))))))
 
 (comment
   (def handler (wrap-request-id identity))
